@@ -1,0 +1,46 @@
+name: Github Actions Slack Notifications
+on:
+  push:
+    branches: [ "main" ]
+    
+permissions:
+  contents: read
+
+jobs:
+
+  notify_slack:
+    needs: build_deploy
+    runs-on: ubuntu-latest
+    if: always() # Ensures this job runs regardless of the previous job's outcome
+
+    env:
+       REPO_NAME: ${{ github.repository }}
+       BRANCH_NAME: ${{ github.ref_name }}
+       COMMIT_SHA: <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|_commit_>
+       AUTHOR_NAME: ${{ github.actor }}
+       JOB_URL: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }}>
+       SLACK_WEBHOOK_URL: "add-your-slack-channel-webhook-url"
+
+    steps:
+    - name: Notify Slack on Success
+      if: needs.build_deploy.result == 'success'
+      run: |
+        curl -X POST -H 'Content-type: application/json' --data '{
+          "text": "---------------------------- * Job Succeeded* :white_check_mark:",
+          "attachments": [
+          {
+          "color": "#35cc00",
+          "text": " Project: *${{env.REPO_NAME}}*\n*Branch:* ${{env.BRANCH_NAME}}\n*Commit:* ${{env.COMMIT_SHA}}\n*Author:* ${{env.AUTHOR_NAME}}\n*View Job:* ${{env.JOB_URL}}"
+          } ] }' $SLACK_WEBHOOK_URL
+
+
+    - name: Notify Slack on Failure
+      if: needs.build_deploy.result == 'failure'
+      run: |
+        curl -X POST -H 'Content-type: application/json' --data '{
+          "text": "---------------------------- * Job Failed* :x:",
+          "attachments": [
+          {
+          "color": "#cc1100",
+          "text": " Project: *${{env.REPO_NAME}}*\n*Branch:* ${{env.BRANCH_NAME}}\n*Commit:* ${{env.COMMIT_SHA}}\n*Author:* ${{env.AUTHOR_NAME}}\n*View Job:* ${{env.JOB_URL}}"
+          } ] }' $SLACK_WEBHOOK_URL
